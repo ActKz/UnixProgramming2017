@@ -35,47 +35,48 @@ void traverse_proc(Sock &tcp, Sock &udp, Sock &tcp6, Sock &udp6){
     struct dirent *ptr1, *ptr2;
     char ps_path[100], ps_fd_path[100], link[100], fds[100], cmd[100];
     int pid;
-    dir_proc = opendir(PROC);
-    while((ptr1 = readdir(dir_proc))!=NULL) {
-        memset(ps_path, 0, 100);
-        sprintf(ps_path,"/proc/%s", ptr1->d_name);
-        pid = strtol( ptr1->d_name, NULL, 10);
-        if(pid > 0){
-            sprintf(ps_fd_path, "%s/fd", ps_path);
-            sprintf(cmd, "%s/cmdline", ps_path);
-            dir_ps = opendir(ps_fd_path);
-            while((ptr2 = readdir(dir_ps))!=NULL){
-                memset(link, 0, 100 );
-                memset(fds, 0, 100 );
-                sprintf(fds, "%s/%s", ps_fd_path, ptr2->d_name);
-                readlink(fds, link, 100);
-                string s(link);
-                if(s.compare(0, 8, "socket:[") == 0){
-                    size_t len = s.find(']')-8;
-                    s = s.substr(8, len);
-                    ifstream cmdline(cmd, ifstream::in);
-                    string cmd_arg = "", tmp;
-                    while(getline(cmdline, tmp, '\0'))
-                        cmd_arg += tmp + " ";
-                    if(tcp.find(s) != tcp.end()){
-                        tcp[s].pid = pid;
-                        tcp[s].cmd = cmd_arg;
-                    }else if(udp.find(s) != udp.end()){
-                        udp[s].pid = pid;
-                        udp[s].cmd = cmd_arg;
-                    }else if(tcp6.find(s) != tcp6.end()){
-                        tcp6[s].pid = pid;
-                        tcp6[s].cmd = cmd_arg;
-                    }else if(udp6.find(s) != udp6.end()){
-                        udp6[s].pid = pid;
-                        udp6[s].cmd = cmd_arg;
+    if((dir_proc = opendir(PROC)) != NULL){
+        while((ptr1 = readdir(dir_proc))!=NULL) {
+            sprintf(ps_path,"/proc/%s", ptr1->d_name);
+            pid = strtol( ptr1->d_name, NULL, 10);
+            if(pid > 0){
+                sprintf(ps_fd_path, "%s/fd", ps_path);
+                sprintf(cmd, "%s/cmdline", ps_path);
+                if((dir_ps = opendir(ps_fd_path)) != NULL){
+                    while((ptr2 = readdir(dir_ps))!=NULL){
+                        memset(link, 0, 100 );
+                        sprintf(fds, "%s/%s", ps_fd_path, ptr2->d_name);
+                        readlink(fds, link, 100);
+                        string s(link);
+                        if(s.compare(0, 8, "socket:[") == 0){
+                            s = s.substr(8, s.find(']')-8);
+                            ifstream cmdline(cmd, ifstream::in);
+                            string cmd_arg = "", tmp;
+                            getline(cmdline, tmp, '\0');
+                            cmd_arg += tmp.substr(tmp.find_last_of('/')+1);
+                            while(getline(cmdline, tmp, '\0'))
+                                cmd_arg += tmp + " ";
+                            if(tcp.find(s) != tcp.end()){
+                                tcp[s].pid = pid;
+                                tcp[s].cmd = cmd_arg;
+                            }else if(udp.find(s) != udp.end()){
+                                udp[s].pid = pid;
+                                udp[s].cmd = cmd_arg;
+                            }else if(tcp6.find(s) != tcp6.end()){
+                                tcp6[s].pid = pid;
+                                tcp6[s].cmd = cmd_arg;
+                            }else if(udp6.find(s) != udp6.end()){
+                                udp6[s].pid = pid;
+                                udp6[s].cmd = cmd_arg;
+                            }
+                        }
                     }
+                    closedir(dir_ps);
                 }
             }
-            closedir(dir_ps);
         }
+        closedir(dir_proc);
     }
-    closedir(dir_proc);
 
 }
 string hexIP_intIP(string hexIP){
@@ -127,25 +128,22 @@ void print_conns(Sock &conn, Sock &conn6, string type, string filt_str){
     cout << "List of "<<type<<" connections:" << endl;
     cout << "Proto Local Address                       Foreign Address                     PID/Program name and arguments" << endl;
     for(auto it = conn.begin(); it != conn.end(); it++){
+        if(regex_filt(it->second.cmd, filt_str)){
         string l_addr = it->second.local_addr + ":" + to_string(it->second.local_port),
                r_addr = it->second.rem_addr + ":" + to_string(it->second.rem_port),
                pid_cmd = to_string(it->second.pid) + "/" + it->second.cmd;
-        if(regex_filt(type   , filt_str)
-        || regex_filt(l_addr , filt_str)
-        || regex_filt(r_addr , filt_str)
-        || regex_filt(pid_cmd, filt_str))
             printf("%-6s%-36s%-36s%s\n", type.data(), l_addr.data(), r_addr.data(), pid_cmd.data());
+        }
     }
     type += "6";
     for(auto it = conn6.begin(); it != conn6.end(); it++){
+
+        if(regex_filt(it->second.cmd, filt_str)){
         string l_addr = it->second.local_addr + ":" + to_string(it->second.local_port),
                r_addr = it->second.rem_addr + ":" + to_string(it->second.rem_port),
                pid_cmd = to_string(it->second.pid) + "/" + it->second.cmd;
-        if(regex_filt(type   , filt_str)
-        || regex_filt(l_addr , filt_str)
-        || regex_filt(r_addr , filt_str)
-        || regex_filt(pid_cmd, filt_str))
             printf("%-6s%-36s%-36s%s\n", type.data(), l_addr.data(), r_addr.data(), pid_cmd.data());
+        }
     }
     cout<<endl;
 
