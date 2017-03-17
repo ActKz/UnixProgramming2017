@@ -31,18 +31,17 @@ class sock_info{
 typedef map<string, sock_info> Sock;
 
 char *l_opt_arg;
-char* const short_options = "tu";
+char const short_options[] = "tu";
 struct option long_options[] = {
-    { "tcp", 0, NULL, 't' },
-    { "udp", 0, NULL, 'u' },
-    {      0,     0,     0,     0},
+    { "tcp"  , 0, NULL, 't' },
+    { "udp"  , 0, NULL, 'u' },
+    { 0      , 0,    0,  0  },
 };
 void traverse_proc(Sock &tcp, Sock &udp, Sock &tcp6, Sock &udp6){
     DIR *dir_proc, *dir_ps;
     struct dirent *ptr1, *ptr2;
     char ps_path[100], ps_fd_path[100], link[100], fds[100], cmd[100];
     int pid;
-    char inode[20];
     dir_proc = opendir(PROC);
     while((ptr1 = readdir(dir_proc))!=NULL) {
         memset(ps_path, 0, 100);
@@ -91,7 +90,6 @@ string hexIP_intIP(string hexIP){
     struct in_addr tmp_ip;
     char ip_str[128];
     unsigned int ip;
-    char tmp[50];
     if(sscanf(hexIP.data(),
             "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
             &tmp_ip6.s6_addr[3], &tmp_ip6.s6_addr[2], &tmp_ip6.s6_addr[1], &tmp_ip6.s6_addr[0],
@@ -118,7 +116,6 @@ void build_conninfo(Sock &connInfo, ifstream &file){
         getline(file, local_port, ' ');
         getline(file, rem_addr, ':');
         getline(file, rem_port, ' ');
-//      file >> local_addr >> rem_addr;
         for(int i = 0; i<6; i++)
             file >> s;
         file >> socket;
@@ -129,26 +126,42 @@ void build_conninfo(Sock &connInfo, ifstream &file){
         connInfo[socket].rem_port = stoul(rem_port, nullptr, 16);
     }
 }
-void print_conns(Sock &conn, Sock &conn6, string type){
+bool regex_filt(string s1, string filt_str){
+    filt_str = ".*" + filt_str + ".*";
+    regex e(filt_str);
+    if(regex_match(s1, e))
+        return true;
+    else
+        return false;
+}
+void print_conns(Sock &conn, Sock &conn6, string type, string filt_str){
     cout << "List of "<<type<<" connections:" << endl;
-    cout << "Proto Local Address           Foreign Address         PID/Program name and arguments" << endl;
+    cout << "Proto Local Address                       Foreign Address                     PID/Program name and arguments" << endl;
     for(auto it = conn.begin(); it != conn.end(); it++){
         string l_addr = it->second.local_addr + ":" + to_string(it->second.local_port),
                r_addr = it->second.rem_addr + ":" + to_string(it->second.rem_port),
                pid_cmd = to_string(it->second.pid) + "/" + it->second.cmd;
-        printf("%-6s%-24s%-24s%s\n", type.data(), l_addr.data(), r_addr.data(), pid_cmd.data());
+        if(regex_filt(type   , filt_str)
+        || regex_filt(l_addr , filt_str)
+        || regex_filt(r_addr , filt_str)
+        || regex_filt(pid_cmd, filt_str))
+            printf("%-6s%-36s%-36s%s\n", type.data(), l_addr.data(), r_addr.data(), pid_cmd.data());
     }
     type += "6";
     for(auto it = conn6.begin(); it != conn6.end(); it++){
         string l_addr = it->second.local_addr + ":" + to_string(it->second.local_port),
                r_addr = it->second.rem_addr + ":" + to_string(it->second.rem_port),
                pid_cmd = to_string(it->second.pid) + "/" + it->second.cmd;
-        printf("%-6s%-24s%-24s%s\n", type.data(), l_addr.data(), r_addr.data(), pid_cmd.data());
+        if(regex_filt(type   , filt_str)
+        || regex_filt(l_addr , filt_str)
+        || regex_filt(r_addr , filt_str)
+        || regex_filt(pid_cmd, filt_str))
+            printf("%-6s%-36s%-36s%s\n", type.data(), l_addr.data(), r_addr.data(), pid_cmd.data());
     }
     cout<<endl;
 
 }
-void netstat_nap(bool tcp, bool udp, char *filt_str){
+void netstat_nap(bool tcp, bool udp, string filt_str){
     Sock tcp_conn, udp_conn, tcp6_conn, udp6_conn;
     ifstream net_tcp, net_tcp6, net_udp, net_udp6;
     bool both = !(tcp ^ udp);
@@ -175,10 +188,10 @@ void netstat_nap(bool tcp, bool udp, char *filt_str){
     }
     traverse_proc(tcp_conn, udp_conn, tcp6_conn, udp6_conn);
     if(tcp | both){
-        print_conns(tcp_conn, tcp6_conn, "tcp");
+        print_conns(tcp_conn, tcp6_conn, "tcp", filt_str);
     }
     if(udp | both){
-        print_conns(udp_conn, udp6_conn, "udp");
+        print_conns(udp_conn, udp6_conn, "udp", filt_str);
     }
 }
 int main(int argc, char *argv[])
@@ -186,6 +199,7 @@ int main(int argc, char *argv[])
     bool tcp = false, udp = false;
     int c;
     char arg[50];
+    string filt_str;
     while((c = getopt_long (argc, argv, short_options, long_options, NULL)) != -1)
     {
         switch (c)
@@ -196,12 +210,16 @@ int main(int argc, char *argv[])
         case 'u':
             udp = true;
             break;
+        default:
+            fprintf(stderr, "Usage: %s [-t|--tcp] [-u|--udp] [filter-string]\n", argv[0]);
+            exit(EXIT_FAILURE);
         }
     }
     if(argv[optind] != NULL){
-        strncpy(arg, argv[optind], 50);
-        printf("%s\n", arg);
+//      strncpy(arg, argv[optind], 50);
+//      printf("%s\n", arg);
+        filt_str = argv[optind];
     }
-    netstat_nap(tcp,udp,arg);
+    netstat_nap(tcp,udp,filt_str);
     return 0;
 }
