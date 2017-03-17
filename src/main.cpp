@@ -30,13 +30,6 @@ class sock_info{
 };
 typedef map<string, sock_info> Sock;
 
-char *l_opt_arg;
-char const short_options[] = "tu";
-struct option long_options[] = {
-    { "tcp"  , 0, NULL, 't' },
-    { "udp"  , 0, NULL, 'u' },
-    { 0      , 0,    0,  0  },
-};
 void traverse_proc(Sock &tcp, Sock &udp, Sock &tcp6, Sock &udp6){
     DIR *dir_proc, *dir_ps;
     struct dirent *ptr1, *ptr2;
@@ -99,10 +92,6 @@ string hexIP_intIP(string hexIP){
         inet_ntop(AF_INET6, &tmp_ip6, ip_str, sizeof ip_str);
         return string(ip_str);
     }else{
-// old method
-//  unsigned int a, b, c, d, e, f, g, h;
-//      sscanf(hexIP.data(), "%2x%2x%2x%2x", &a, &b, &c, &d);
-//      snprintf(tmp, 50, "%u.%u.%u.%u", d, c, b, a);
         ip = (int)strtol(hexIP.data(), NULL, 16 );
         tmp_ip.s_addr = htonl(htobe32(ip));
         return string(inet_ntoa(tmp_ip));
@@ -194,11 +183,17 @@ void netstat_nap(bool tcp, bool udp, string filt_str){
         print_conns(udp_conn, udp6_conn, "udp", filt_str);
     }
 }
+char *l_opt_arg;
+char const short_options[] = "tu";
+struct option long_options[] = {
+    { "tcp"  , 0, NULL, 't' },
+    { "udp"  , 0, NULL, 'u' },
+    { 0      , 0,    0,  0  },
+};
 int main(int argc, char *argv[])
 {
     bool tcp = false, udp = false;
     int c;
-    char arg[50];
     string filt_str;
     while((c = getopt_long (argc, argv, short_options, long_options, NULL)) != -1)
     {
@@ -216,8 +211,6 @@ int main(int argc, char *argv[])
         }
     }
     if(argv[optind] != NULL){
-//      strncpy(arg, argv[optind], 50);
-//      printf("%s\n", arg);
         filt_str = argv[optind];
     }
     netstat_nap(tcp,udp,filt_str);
