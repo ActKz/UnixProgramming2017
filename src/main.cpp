@@ -132,6 +132,8 @@ void print_conns(Sock &conn, Sock &conn6, string type, string filt_str){
         string l_addr = it->second.local_addr + ":" + to_string(it->second.local_port),
                r_addr = it->second.rem_addr + ":" + to_string(it->second.rem_port),
                pid_cmd = to_string(it->second.pid) + "/" + it->second.cmd;
+            if(pid_cmd.compare("0/") == 0)
+                pid_cmd = "-";
             printf("%-6s%-36s%-36s%s\n", type.data(), l_addr.data(), r_addr.data(), pid_cmd.data());
         }
     }
@@ -142,6 +144,8 @@ void print_conns(Sock &conn, Sock &conn6, string type, string filt_str){
         string l_addr = it->second.local_addr + ":" + to_string(it->second.local_port),
                r_addr = it->second.rem_addr + ":" + to_string(it->second.rem_port),
                pid_cmd = to_string(it->second.pid) + "/" + it->second.cmd;
+            if(pid_cmd.compare("0/") == 0)
+                pid_cmd = "-";
             printf("%-6s%-36s%-36s%s\n", type.data(), l_addr.data(), r_addr.data(), pid_cmd.data());
         }
     }
