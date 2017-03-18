@@ -124,9 +124,9 @@ void build_conninfo(Sock &connInfo, ifstream &file){
     }
 }
 bool regex_filt(string s1, string filt_str){
-    filt_str = ".*" + filt_str + ".*";
+//  filt_str = ".*" + filt_str + ".*";
     regex e(filt_str);
-    if(regex_match(s1, e))
+    if(regex_search(s1, e))
         return true;
     else
         return false;
