@@ -10,6 +10,7 @@
 #include <regex>
 #include <arpa/inet.h>
 #include <endian.h>
+#include <string>
 
 using namespace std;
 
@@ -51,9 +52,15 @@ void traverse_proc(Sock &tcp, Sock &udp, Sock &tcp6, Sock &udp6){
                         if(s.compare(0, 8, "socket:[") == 0){
                             s = s.substr(8, s.find(']')-8);
                             ifstream cmdline(cmd, ifstream::in);
-                            string cmd_arg = "", tmp;
+                            string cmd_arg = "", tmp, s1, s2;
+                            size_t pos;
                             getline(cmdline, tmp, '\0');
-                            cmd_arg += tmp.substr(tmp.find_last_of('/')+1);
+                            if( (pos = tmp.find_first_of(' ')) != string::npos){
+                                s1 = tmp.substr(0, pos);
+                                s2 = tmp.substr(pos);
+                                cmd_arg += s1.substr(s1.find_last_of('/')+1) + s2;
+                            }else
+                                cmd_arg += tmp.substr(tmp.find_last_of('/')+1);
                             while(getline(cmdline, tmp, '\0'))
                                 cmd_arg += tmp + " ";
                             if(tcp.find(s) != tcp.end()){
