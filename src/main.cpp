@@ -136,8 +136,10 @@ void print_conns(Sock &conn, Sock &conn6, string type, string filt_str){
     cout << "Proto Local Address                       Foreign Address                     PID/Program name and arguments" << endl;
     for(auto it = conn.begin(); it != conn.end(); it++){
         if(regex_filt(it->second.cmd, filt_str)){
-        string l_addr = it->second.local_addr + ":" + to_string(it->second.local_port),
-               r_addr = it->second.rem_addr + ":" + to_string(it->second.rem_port),
+        string l_port = it->second.local_port == 0? "*":to_string(it->second.local_port),
+               r_port = it->second.rem_port == 0? "*":to_string(it->second.rem_port);
+        string l_addr = it->second.local_addr + ":" + l_port,
+               r_addr = it->second.rem_addr + ":" + r_port,
                pid_cmd = to_string(it->second.pid) + "/" + it->second.cmd;
             if(pid_cmd.compare("0/") == 0)
                 pid_cmd = "-";
@@ -148,8 +150,10 @@ void print_conns(Sock &conn, Sock &conn6, string type, string filt_str){
     for(auto it = conn6.begin(); it != conn6.end(); it++){
 
         if(regex_filt(it->second.cmd, filt_str)){
-        string l_addr = it->second.local_addr + ":" + to_string(it->second.local_port),
-               r_addr = it->second.rem_addr + ":" + to_string(it->second.rem_port),
+        string l_port = it->second.local_port == 0? "*":to_string(it->second.local_port),
+               r_port = it->second.rem_port == 0? "*":to_string(it->second.rem_port);
+        string l_addr = it->second.local_addr + ":" + l_port,
+               r_addr = it->second.rem_addr + ":" + r_port,
                pid_cmd = to_string(it->second.pid) + "/" + it->second.cmd;
             if(pid_cmd.compare("0/") == 0)
                 pid_cmd = "-";
