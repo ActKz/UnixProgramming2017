@@ -9,9 +9,11 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <limits.h>
 
 static int out;
-#define UI %d
 #define typename(x) _Generic((x),        /* Get the name of a type */             \
                 _Bool: 0,           unsigned char: 9,\
                  char: 1,             signed char: 10,\
@@ -22,20 +24,35 @@ static int out;
                 float: 6,                  double: 15,\
           long double: 7,                  char *: 16,\
                void *: 8,                   int *: 17,\
-              const char *: 19, default: 18, const void *: 20)
-#define str(a) #a
+              const char *: 19, default: 18, const void *: 20/*, struct stat*:21, FILE*:22, DIR*:23*/)
+/*#define STAT(stat) do{\
+        struct stat* tmp = stat;\
+        dprintf("{Size: %d,Perm: %d}", tmp->st_size, tmp->st_mode);\
+    }while(0)
+#define GET_FILE_NAME(a) do{\
+	char path[1024];\
+    char result[1024];\
+    int fd = fileno(a); \
+    sprintf(path, "/proc/self/fd/%d", fd);\
+    memset(result, 0, 1024));\
+    readlink(path, result, 1023);\
+    }while(0)*/
 #define D(a) do{\
+        char *tmp;\
         switch (typename(a)){\
             case 2:case 3:case 4:case 5:case 11:case 12:case 13:case 14: dprintf(out,"%d",a);break;\
-            case 16:case 19: dprintf(out,"'%s'",a);break;\
-            case 1:case 9:case 10: dprintf(out,"'%c'", str(#a));break;\
-            case 8:case 18:case 20: dprintf(out,"%p", a);break;\
+            case 16:case 19:case 20: dprintf(out,"'%s'",a);break;\
+            case 1:case 9:case 10: dprintf(out,"'%c'",a);break;\
+            case 8:case 18: dprintf(out,"%p", a);break;\
             case 6:case 7:case 15: dprintf(out,"%f", a);break;\
             case 17:dprintf(out,"%d", a);break;\
+            case 21:dprintf(out,"HA");break;\
+            case 22:GET_FILE_NAME(a);break;\
+			case 23:dprintf(out,"DIRRRRRR");break;\
         }\
     }while(0)
 #define ARGPRINT(fmt, func, ... ) dprintf(out, fmt, #func, __VA_ARGS__)
-#define MONITOR_ARG4(func, arg1, arg2, arg3, arg4) do{\
+#define LDLIB(func) do{\
     if(old_ ## func == NULL) {\
         void *handle = dlopen("libc.so.6", RTLD_LAZY);\
         if(handle == NULL){\
@@ -44,6 +61,9 @@ static int out;
         }\
         old_ ## func = dlsym(handle, #func );\
     }\
+    }while(0)
+#define MONITOR_ARG4(func, arg1, arg2, arg3, arg4) do{\
+    LDLIB(func);\
     if(old_ ## func != NULL){\
         res = old_ ## func (arg1, arg2, arg3, arg4);\
         dprintf(out,"[monitor] %s(",#func);D(arg1);dprintf(out,",");D(arg2);dprintf(out,",");D(arg3);dprintf(out,",");D(arg4);dprintf(out,") = ");D(res);\
@@ -52,14 +72,7 @@ static int out;
     }\
     }while(0)
 #define MONITOR_ARG3(func, arg1, arg2, arg3) do{\
-    if(old_ ## func == NULL) {\
-        void *handle = dlopen("libc.so.6", RTLD_LAZY);\
-        if(handle == NULL){\
-            fprintf(stderr, "libc.so.6 load error\n");\
-            exit(1);\
-        }\
-        old_ ## func = dlsym(handle, #func );\
-    }\
+        LDLIB(func);\
     if(old_ ## func != NULL){\
         res = old_ ## func (arg1, arg2, arg3);\
         dprintf(out,"[monitor] %s(",#func);D(arg1);dprintf(out,",");D(arg2);dprintf(out,",");D(arg3);dprintf(out,") = ");D(res);\
@@ -68,14 +81,7 @@ static int out;
     }\
     }while(0)
 #define MONITOR_ARG2_NORET(func, arg1, arg2) do{\
-    if(old_ ## func == NULL) {\
-        void *handle = dlopen("libc.so.6", RTLD_LAZY);\
-        if(handle == NULL){\
-            fprintf(stderr, "libc.so.6 load error\n");\
-            exit(1);\
-        }\
-        old_ ## func = dlsym(handle, #func );\
-    }\
+    LDLIB(func);\
     if(old_ ## func != NULL){\
         old_ ## func (arg1, arg2);\
         dprintf(out,"[monitor] %s(",#func);D(arg1);dprintf(out,",");D(arg2);dprintf(out,")");\
@@ -83,15 +89,7 @@ static int out;
     }\
     }while(0)
 #define MONITOR_ARG2(func, arg1, arg2) do{\
-    if(old_ ## func == NULL) {\
-        void *handle = dlopen("libc.so.6", RTLD_LAZY);\
-        if(handle == NULL){\
-            fprintf(stderr, "libc.so.6 load error\n");\
-            exit(1);\
-        }\
-        old_ ## func = dlsym(handle, #func );\
-    }\
-        fprintf(stderr, "%s!!!", #func);\
+        LDLIB(func);\
     if(old_ ## func != NULL){\
         res = old_ ## func (arg1, arg2);\
         dprintf(out, "[monitor] %s(",#func);D(arg1);dprintf(out, ",");D(arg2);dprintf(out, ") = ");D(res);\
@@ -100,14 +98,7 @@ static int out;
     }\
     }while(0)
 #define MONITOR_ARG1_NORET(func, arg) do{\
-    if(old_ ## func == NULL) {\
-        void *handle = dlopen("libc.so.6", RTLD_LAZY);\
-        if(handle == NULL){\
-            fprintf(stderr, "libc.so.6 load error\n");\
-            exit(1);\
-        }\
-        old_ ## func = dlsym(handle, #func );\
-    }\
+        LDLIB(func);\
     if(old_ ## func != NULL){\
         old_ ## func (arg);\
         dprintf(out,"[monitor] %s(",#func);D(arg);dprintf(out,")");\
@@ -115,14 +106,7 @@ static int out;
     }\
     }while(0)
 #define MONITOR_ARG1(func, arg) do{\
-    if(old_ ## func == NULL) {\
-        void *handle = dlopen("libc.so.6", RTLD_LAZY);\
-        if(handle == NULL){\
-            fprintf(stderr, "libc.so.6 load error\n");\
-            exit(1);\
-        }\
-        old_ ## func = dlsym(handle, #func );\
-    }\
+    LDLIB(func);\
     if(old_ ## func != NULL){\
         res = old_ ## func (arg);\
         dprintf(out,"[monitor] %s(",#func);D(arg);dprintf(out,") = ");D(res);\
@@ -131,14 +115,7 @@ static int out;
     }\
     }while(0)
 #define MONITOR_ARG0(func) do{\
-    if(old_ ## func == NULL) {\
-        void *handle = dlopen("libc.so.6", RTLD_LAZY);\
-        if(handle == NULL){\
-            fprintf(stderr, "libc.so.6 load error\n");\
-            exit(1);\
-        }\
-        old_ ## func = dlsym(handle, #func );\
-    }\
+        LDLIB(func);\
     if(old_ ## func != NULL){\
         res = old_ ## func ();\
         dprintf(out,"[monitor] %s() = ",#func);D(res);\
@@ -146,21 +123,15 @@ static int out;
         return res;\
     }\
     }while(0)
-/*
+
 #define MONITOR(func , ... ) do{\
-    if(old_ ## func == NULL) {\
-        void *handle = dlopen("libc.so.6", RTLD_LAZY);\
-        if(handle == NULL){\
-            fprintf(stderr, "libc.so.6 load error\n");\
-            exit(1);\
-        }\
-        old_ ## func = dlsym(handle, #func );\
-    }\
+	LDLIB(func);\
     if(old_ ## func != NULL){\
-        fprintf(stderr, FMT_TYPE(__VA_ARGS__));\
-        res = (__typeof__(old_ ## func))old_ ## func (__VA_ARGS__);\
+        res = old_ ## func (__VA_ARGS__);\
+		dprintf(out,"[monitor] %s()",#func);\
+		return res;\
     }\
-    }while(0)*/
+    }while(0)
 
 
 __attribute__((constructor)) static void init()
@@ -212,29 +183,49 @@ int chmod(const char *path, mode_t mode){ int res;MONITOR_ARG2(chmod, path, mode
 
 DIR *(*old_fdopendir)(int fd) = NULL;
 DIR *fdopendir(int fd){ DIR* res;MONITOR_ARG1(fdopendir, fd);}
-/*
+
 int (*old_open)(const char *path, int oflag, ... ) = NULL;
 int open(const char *path, int oflag, ... ){
+    int res;
     va_list args;
     va_start(args, oflag);
-    MONITOR(open, path, oflag, args);
+    mode_t mode = va_arg(args, mode_t);
+    if(args == 0)
+        MONITOR_ARG2(open, path, oflag);
+    else
+        MONITOR_ARG3(open, path, oflag, mode);
     va_end(args);
-}*/
+}
 
 void (*old_exit)(int status) = NULL;
 void exit(int status){ MONITOR_ARG1_NORET(exit, status);}
 
 void (*old_srand)(unsigned int seed) = NULL;
 void srand(unsigned int seed){ MONITOR_ARG1_NORET(srand, seed);}
-/*
+
 int (*old_execl)(const char *path, const char *arg, ...) = NULL;
 int execl(const char *path, const char *arg, ...){
-    va_list args;
-    va_start(args, arg);
-    MONITOR(execl, path, arg, args);
-    va_end(args);
+	va_list ap;
+	int res, argno = 0;
+    char *array[20 +1];
+	char tmp[512];
+	memset(tmp,'\0',512);
+    va_start(ap, arg);
+	dprintf(out,"[monitor] execl(");
+    while (arg != NULL && argno < 20)
+    {
+        array[argno++] = arg;
+		dprintf(out,"'%s'",array[argno-1]);
+        arg = va_arg(ap, const char *);
+		if( arg != NULL )
+			dprintf(out,",");
+    }
+    array[argno] = NULL;
+    va_end(ap);
+	dprintf(out,")\n");
+	return execv(path, array);
 }
-*/
+
 pid_t (*old_fork)(void) = NULL;
 pid_t fork(void){ pid_t res;MONITOR_ARG0(fork);}
 
@@ -258,16 +249,39 @@ char *getenv(const char *name){ char* res;MONITOR_ARG1(getenv, name);}
 
 int (*old_system)(const char *command) = NULL;
 int system(const char *command){ int res;MONITOR_ARG1(system, command);}
-/*
-int (*old_execle)(const char *path, const char *arg,
-        ..., char * const envp[]) = NULL;
-int execle(const char *path, const char *arg,
-        ..., char * const envp[]){
-    va_list args;
-    va_start(args, arg);
-    MONITOR(execl, path, arg, args, envp);
-    va_end(args);
-}*/
+
+int (*old_execle)(const char *path, const char *arg, ...) = NULL;
+int execle(const char *path, const char *arg,...){
+    ptrdiff_t argc;
+    va_list ap;
+    va_start (ap, arg);
+    for (argc = 1; va_arg (ap, const char *); argc++)
+    {
+        if (argc == INT_MAX)
+        {
+            va_end (ap);
+            errno = E2BIG;
+            return -1;
+        }
+    }
+    va_end (ap);
+    ptrdiff_t i;
+    char *argv[argc + 1];
+    char **envp;
+    va_start (ap, arg);
+    argv[0] = (char *) arg;
+	dprintf(out, "[monitor] execle(");
+    for (i = 1; i <= argc; i++){
+        argv[i] = va_arg (ap, char *);
+		dprintf(out, "%s", argv[i]);
+		if(i != argc)
+			dprintf(out, ",");
+	}
+    envp = va_arg (ap, char **);
+    va_end (ap);
+	dprintf(out,")\n");
+	return execve(path, argv, envp);
+}
 
 int (*old_fsync)(int fd) = NULL;
 int fsync(int fd){ int res;MONITOR_ARG1(fsync, fd);}
@@ -278,8 +292,10 @@ int pipe(int pipefd[2]){ int res;MONITOR_ARG1(pipe, pipefd);}
 int (*old_setgid)(gid_t gid) = NULL;
 int setgid(gid_t gid){ int res;MONITOR_ARG1(setgid, gid);}
 
-int (*old_fstat)(int fd, struct stat *buf) = NULL;
-int fstat(int fd, struct stat *buf){ int res;MONITOR_ARG2(fstat, fd, buf);}
+//int (*old_fstat)(int fd, struct stat *buf) = NULL;
+//int fstat(int fd, struct stat *buf){ int res;MONITOR_ARG2(fstat, fd, buf);}
+int (*old___fxstat)(int ver, int fildes, struct stat * stat_buf) = NULL;
+int __fxstat(int ver, int fildes, struct stat * stat_buf){ int res;MONITOR_ARG3(__fxstat, ver, fildes, stat_buf);}
 
 struct dirent *(*old_readdir)(DIR *dirp) = NULL;
 struct dirent *readdir(DIR *dirp){ struct dirent* res;MONITOR_ARG1(readdir, dirp);}
@@ -292,14 +308,29 @@ char *mkdtemp(char *template){ char* res;MONITOR_ARG1(mkdtemp, template);}
 
 int (*old_chdir)(const char *path) = NULL;
 int chdir(const char *path){ int res;MONITOR_ARG1(chdir, path);}
-/*
+
 int (*old_execlp)(const char *file, const char *arg, ...) = NULL;
 int execlp(const char *file, const char *arg, ...){
-    va_list args;
-    va_start(args, arg);
-    MONITOR(execlp, path, arg, args, envp);
-    va_end(args);
-}*/
+	va_list ap;
+	int res, argno = 0;
+    char *array[20 +1];
+	char tmp[512];
+	memset(tmp,'\0',512);
+    va_start(ap, arg);
+	dprintf(out,"[monitor] execlp(");
+    while (arg != NULL && argno < 20)
+    {
+        array[argno++] = arg;
+		dprintf(out,"'%s'",array[argno-1]);
+        arg = va_arg(ap, const char *);
+		if( arg != NULL )
+			dprintf(out,",");
+    }
+    array[argno] = NULL;
+    va_end(ap);
+	dprintf(out,")\n");
+	return execvp(file, array);
+}
 
 int (*old_ftruncate)(int fd, off_t length) = NULL;
 int ftruncate(int fd, off_t length){ int res;MONITOR_ARG2(ftruncate, fd, length);}
@@ -310,8 +341,9 @@ ssize_t pread(int fd, void *buf, size_t count, off_t offset){ ssize_t res;MONITO
 int (*old_setuid)(uid_t uid) = NULL;
 int setuid(uid_t uid){ int res;MONITOR_ARG1(setuid, uid);}
 
-int (*old_lstat)(const char *path, struct stat *buf) = NULL;
-int lstat(const char *path, struct stat *buf){ int res;MONITOR_ARG2(lstat, path, buf);}
+//lstat
+int (*old___lxstat) (int vers, const char *name, struct stat *buf) = NULL;
+int __lxstat (int vers, const char *name, struct stat *buf){ int res;MONITOR_ARG3(__lxstat, vers, name, buf);}
 
 int (*old_readdir_r)(DIR *dirp, struct dirent *entry, struct dirent **result) = NULL;
 int readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result){ int res;MONITOR_ARG3(readdir_r, dirp, entry, result);}
@@ -393,8 +425,8 @@ ssize_t readlink(const char *path, char *buf, size_t bufsiz){ ssize_t res;MONITO
 int (*old_unlink)(const char *pathname) = NULL;
 int unlink(const char *pathname){ int res;MONITOR_ARG1(unlink, pathname);}
 
-int (*old_stat)(const char *path, struct stat *buf) = NULL;
-int stat(const char *path, struct stat *buf){ int res;MONITOR_ARG2(stat, path, buf);}
+int (*old___xstat)(int ver, const char * path, struct stat * stat_buf) = NULL;
+int __xstat(int ver, const char * path, struct stat * stat_buf){ int res;MONITOR_ARG3(__xstat, ver, path, stat_buf);}
 
 long (*old_telldir)(DIR *dirp) = NULL;
 long telldir(DIR *dirp){ long res;MONITOR_ARG1(telldir, dirp);}
@@ -418,15 +450,23 @@ int (*old_rmdir)(const char *pathname) = NULL;
 int rmdir(const char *pathname){ int res;MONITOR_ARG1(rmdir, pathname);}
 
 ssize_t (*old_write)(int fd, const void *buf, size_t count) = NULL;
-ssize_t write(int fd, const void *buf, size_t count){
-    ssize_t res;
-    MONITOR_ARG3(write, fd, buf, count);
-    return res;
-}
+ssize_t write(int fd, const void *buf, size_t count){ ssize_t res; MONITOR_ARG3(write, fd, buf, count);}
 
 mode_t (*old_umask)(mode_t mask) = NULL;
-mode_t umask(mode_t mask){
-    mode_t res;
-    MONITOR_ARG1(umask, mask);
-    return res;
-}
+mode_t umask(mode_t mask){ mode_t res; MONITOR_ARG1(umask, mask);}
+
+// Extra
+char *(*old_strcpy)(char *dest, const char *src) = NULL;
+char *strcpy(char *dest, const char *src){ char* res;MONITOR_ARG2(strcpy, dest, src);}
+
+char *(*old_gets) ( char * str ) = NULL;
+char * gets ( char * str ){ char* res; MONITOR_ARG1(gets, str);}
+
+char *(*old_strcat) ( char * destination, const char * source ) = NULL;
+char * strcat ( char * dest, const char * src ){ char* res; MONITOR_ARG2(strcat, dest, src);}
+
+char *(*old_getwd)(char *buf) = NULL;
+char *getwd(char *buf){ char* res;MONITOR_ARG1(getwd, buf);}
+
+char *(*old_realpath)(const char *path, char *resolved_path) = NULL;
+char *realpath(const char *path, char *resol){ char* res;MONITOR_ARG2(realpath, path, resol);}
