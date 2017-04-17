@@ -4,11 +4,13 @@
 ```
 cd src/
 make
+make extra
 ```
 
 ## Example usage
 ```
 MONITOR_OUTPUT=stderr LD_PRELOAD=./hw2.so ls -al
+MONITOR_OUTPUT=stderr LD_PRELOAD=./hw2.so ./extra.out
 ```
 
 ## Function list
