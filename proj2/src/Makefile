@@ -5,5 +5,8 @@ TARG = hw2.so
 all: libinject.c
 	$(CC) $< -o $(TARG) $(CFLAGS)
 
+extra: TestForExtra.c
+	$(CC) $< -o extra.out
+
 clean:
 	rm $(TARG)

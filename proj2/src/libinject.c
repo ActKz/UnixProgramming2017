@@ -51,7 +51,7 @@ static int out;
 			case 23:dprintf(out,"DIRRRRRR");break;\
         }\
     }while(0)
-#define ARGPRINT(fmt, func, ... ) dprintf(out, fmt, #func, __VA_ARGS__)
+//#define ARGPRINT(fmt, func, ... ) dprintf(out, fmt, #func, __VA_ARGS__)
 #define LDLIB(func) do{\
     if(old_ ## func == NULL) {\
         void *handle = dlopen("libc.so.6", RTLD_LAZY);\
@@ -123,7 +123,7 @@ static int out;
         return res;\
     }\
     }while(0)
-
+/*
 #define MONITOR(func , ... ) do{\
 	LDLIB(func);\
     if(old_ ## func != NULL){\
@@ -132,7 +132,7 @@ static int out;
 		return res;\
     }\
     }while(0)
-
+*/
 
 __attribute__((constructor)) static void init()
 {
