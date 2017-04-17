@@ -26,12 +26,12 @@ static int out;
 #define str(a) #a
 #define D(a) do{\
         switch (typename(a)){\
-            case 2:case 3:case 4:case 5:case 11:case 12:case 13:case 14: printf("%d",a);break;\
-            case 16:case 19: printf("%s",str(#a));break;\
-            case 1:case 9:case 10: printf("%c", str(#a));break;\
-            case 8:case 18:case 20: printf("%p", a);break;\
-            case 6:case 7:case 15: printf("%f", a);break;\
-            case 17:printf("%d", a);break;\
+            case 2:case 3:case 4:case 5:case 11:case 12:case 13:case 14: dprintf(out,"%d",a);break;\
+            case 16:case 19: dprintf(out,"'%s'",a);break;\
+            case 1:case 9:case 10: dprintf(out,"'%c'", str(#a));break;\
+            case 8:case 18:case 20: dprintf(out,"%p", a);break;\
+            case 6:case 7:case 15: dprintf(out,"%f", a);break;\
+            case 17:dprintf(out,"%d", a);break;\
         }\
     }while(0)
 #define ARGPRINT(fmt, func, ... ) dprintf(out, fmt, #func, __VA_ARGS__)
@@ -44,11 +44,10 @@ static int out;
         }\
         old_ ## func = dlsym(handle, #func );\
     }\
-    fprintf(stderr, "WOW injected!\n");\
     if(old_ ## func != NULL){\
         res = old_ ## func (arg1, arg2, arg3, arg4);\
-        printf("[monitor] %s(",#func);D(arg1);printf(",");D(arg2);printf(",");D(arg3);printf(",");D(arg4);printf(") = ");\
-        printf("\n");\
+        dprintf(out,"[monitor] %s(",#func);D(arg1);dprintf(out,",");D(arg2);dprintf(out,",");D(arg3);dprintf(out,",");D(arg4);dprintf(out,") = ");D(res);\
+        dprintf(out,"\n");\
         return res;\
     }\
     }while(0)
@@ -61,11 +60,10 @@ static int out;
         }\
         old_ ## func = dlsym(handle, #func );\
     }\
-    fprintf(stderr, "WOW injected!\n");\
     if(old_ ## func != NULL){\
         res = old_ ## func (arg1, arg2, arg3);\
-        printf("[monitor] %s(",#func);D(arg1);printf(",");D(arg2);printf(",");D(arg3);printf(") = ");\
-        printf("\n");\
+        dprintf(out,"[monitor] %s(",#func);D(arg1);dprintf(out,",");D(arg2);dprintf(out,",");D(arg3);dprintf(out,") = ");D(res);\
+        dprintf(out,"\n");\
         return res;\
     }\
     }while(0)
@@ -78,11 +76,10 @@ static int out;
         }\
         old_ ## func = dlsym(handle, #func );\
     }\
-    fprintf(stderr, "WOW injected!\n");\
     if(old_ ## func != NULL){\
         old_ ## func (arg1, arg2);\
-        printf("[monitor] %s(",#func);D(arg1);printf(",");D(arg2);printf(")");\
-        printf("\n");\
+        dprintf(out,"[monitor] %s(",#func);D(arg1);dprintf(out,",");D(arg2);dprintf(out,")");\
+        dprintf(out,"\n");\
     }\
     }while(0)
 #define MONITOR_ARG2(func, arg1, arg2) do{\
@@ -94,11 +91,11 @@ static int out;
         }\
         old_ ## func = dlsym(handle, #func );\
     }\
-    fprintf(stderr, "WOW injected!\n");\
+        fprintf(stderr, "%s!!!", #func);\
     if(old_ ## func != NULL){\
         res = old_ ## func (arg1, arg2);\
-        printf("[monitor] %s(",#func);D(arg1);printf(",");D(arg2);printf(") = ");\
-        printf("\n");\
+        dprintf(out, "[monitor] %s(",#func);D(arg1);dprintf(out, ",");D(arg2);dprintf(out, ") = ");D(res);\
+        dprintf(out, "\n");\
         return res;\
     }\
     }while(0)
@@ -111,11 +108,10 @@ static int out;
         }\
         old_ ## func = dlsym(handle, #func );\
     }\
-    fprintf(stderr, "WOW injected!\n");\
     if(old_ ## func != NULL){\
         old_ ## func (arg);\
-        printf("[monitor] %s(",#func);D(arg);printf(") = ");\
-        printf("\n");\
+        dprintf(out,"[monitor] %s(",#func);D(arg);dprintf(out,")");\
+        dprintf(out,"\n");\
     }\
     }while(0)
 #define MONITOR_ARG1(func, arg) do{\
@@ -127,11 +123,10 @@ static int out;
         }\
         old_ ## func = dlsym(handle, #func );\
     }\
-    fprintf(stderr, "WOW injected!\n");\
     if(old_ ## func != NULL){\
         res = old_ ## func (arg);\
-        printf("[monitor] %s(",#func);D(arg);printf(") = ");\
-        printf("\n");\
+        dprintf(out,"[monitor] %s(",#func);D(arg);dprintf(out,") = ");D(res);\
+        dprintf(out,"\n");\
         return res;\
     }\
     }while(0)
@@ -144,11 +139,10 @@ static int out;
         }\
         old_ ## func = dlsym(handle, #func );\
     }\
-    fprintf(stderr, "WOW injected!\n");\
     if(old_ ## func != NULL){\
         res = old_ ## func ();\
-        printf("[monitor] %s(",#func);printf(") = ");D(res);\
-        printf("\n");\
+        dprintf(out,"[monitor] %s() = ",#func);D(res);\
+        dprintf(out,"\n");\
         return res;\
     }\
     }while(0)
@@ -162,7 +156,6 @@ static int out;
         }\
         old_ ## func = dlsym(handle, #func );\
     }\
-    fprintf(stderr, "WOW injected!\n");\
     if(old_ ## func != NULL){\
         fprintf(stderr, FMT_TYPE(__VA_ARGS__));\
         res = (__typeof__(old_ ## func))old_ ## func (__VA_ARGS__);\
