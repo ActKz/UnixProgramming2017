@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=c11 -shared -fPIC -ldl
+CFLAGS = -w -std=c11 -shared -fPIC -ldl
 TARG = hw2.so
 
 all: libinject.c
